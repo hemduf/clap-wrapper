@@ -19,14 +19,31 @@ class fixedqueue
     _elements[_head] = *val;
     _head = (_head + 1) & _wrapMask;
   }
-  inline bool pop(T &out)
+  inline bool try_push(const T &val)
   {
-    if (_head == _tail)
+    return try_push(&val);
+  }
+  inline bool try_push(const T *val)
+  {
+    const auto head = _head.load(std::memory_order_relaxed);
+    const auto next = (head + 1) & _wrapMask;
+    if (next == _tail.load(std::memory_order_acquire))
     {
       return false;
     }
-    out = _elements[_tail];
-    _tail = (_tail + 1) & _wrapMask;
+    _elements[head] = *val;
+    _head.store(next, std::memory_order_release);
+    return true;
+  }
+  inline bool pop(T &out)
+  {
+    const auto tail = _tail.load(std::memory_order_relaxed);
+    if (_head.load(std::memory_order_acquire) == tail)
+    {
+      return false;
+    }
+    out = _elements[tail];
+    _tail.store((tail + 1) & _wrapMask, std::memory_order_release);
     return true;
   }
 
