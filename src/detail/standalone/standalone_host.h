@@ -25,6 +25,7 @@
 #endif
 
 #include "clap_proxy.h"
+#include "clapwrapper/standalone_device_control.h"
 #include "detail/shared/fixedqueue.h"
 #include "detail/shared/spinlock.h"
 
@@ -51,10 +52,7 @@ struct StandaloneHost : Clap::IHost
   }
   virtual ~StandaloneHost();
 
-  static bool oe_try_push(const struct clap_output_events *oe, const clap_event_header_t *evt)
-  {
-    return true;
-  }
+  static bool oe_try_push(const struct clap_output_events *oe, const clap_event_header_t *evt);
 
   static uint32_t ie_getsize(const struct clap_input_events *ie)
   {
@@ -124,6 +122,8 @@ struct StandaloneHost : Clap::IHost
   {
     TRACE;
   }
+
+  const void *getHostExtension(const char *extension) override;
 
   bool saveStandaloneAndPluginSettings(const fs::path &intoDir, const fs::path &withName);
   bool tryLoadStandaloneAndPluginSettings(const fs::path &fromDir, const fs::path &withName);
@@ -228,19 +228,32 @@ struct StandaloneHost : Clap::IHost
   // Implementation in standalone_host_midi.cpp
   struct midiChunk
   {
-    char dat[3]{};
+    unsigned char dat[3]{};
     midiChunk()
     {
       memset(dat, 0, sizeof(dat));
     }
   };
   ClapWrapper::detail::shared::fixedqueue<midiChunk, 4096> midiToAudioQueue;
+  ClapWrapper::detail::shared::fixedqueue<midiChunk, 4096> midiFromAudioQueue;
   std::vector<std::unique_ptr<RtMidiIn>> midiIns;
-  uint32_t numMidiPorts{0};
-  std::vector<uint32_t> currentMidiPorts;
+  std::vector<std::unique_ptr<RtMidiOut>> midiOuts;
+  uint32_t numMidiInputPorts{0};
+  uint32_t numMidiOutputPorts{0};
+  std::vector<uint32_t> currentMidiInputPorts;
+  std::vector<uint32_t> currentMidiOutputPorts;
+  bool midiInputSelectionInitialized{false};
+  bool midiOutputSelectionInitialized{false};
+  std::atomic<bool> midiOutputWorkerRunning{false};
+  std::thread midiOutputWorker;
   void startMIDIThread();
   void stopMIDIThread();
+  void reopenMIDIPorts();
+  bool setMIDIPortEnabled(bool input, uint32_t port, bool enabled);
+  std::vector<std::string> getMidiInputPortNames();
+  std::vector<std::string> getMidiOutputPortNames();
   void processMIDIEvents(double deltatime, std::vector<unsigned char> *message);
+  void midiOutputWorkerLoop();
   static void midiCallback(double deltatime, std::vector<unsigned char> *message, void *userData);
 
   // in standalone_host.cpp
