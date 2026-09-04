@@ -73,6 +73,14 @@ class IHost
   virtual bool track_info_get(clap_track_info_t *info) = 0;
   virtual const char *host_get_name() = 0;
 
+  // Wrapper-specific host extensions are optional. This hook keeps the proxy
+  // generic while allowing a wrapper flavor (notably standalone) to expose a
+  // private CLAP host contract without adding format-specific methods here.
+  virtual const void *getHostExtension(const char *extension)
+  {
+    return nullptr;
+  }
+
   // context menu
 
   // actually, everything here should be virtual only, but until all wrappers are updated,
