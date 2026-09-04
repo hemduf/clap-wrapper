@@ -22,11 +22,6 @@ namespace
 {
 std::mutex midiInputPushMutex;
 
-bool containsPort(const std::vector<uint32_t> &ports, uint32_t port)
-{
-  return std::find(ports.begin(), ports.end(), port) != ports.end();
-}
-
 size_t midiMessageLength(unsigned char status)
 {
   if (status < 0x80) return 3;
