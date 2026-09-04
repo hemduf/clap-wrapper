@@ -53,7 +53,7 @@ function(target_add_standalone_wrapper)
 
     if (NOT DEFINED SA_BUNDLE_VERSION)
         message(STATUS "No SA_BUNDLE_VERSION - using ${PROJECT_VERSION}")
-        set(SA_BUNDLE_VERSION "${PROJECT_VERSION}")
+        set(SA_BUNDLE_VERSION ${PROJECT_VERSION})
     endif()
 
     guarantee_rtaudio()
@@ -65,6 +65,7 @@ function(target_add_standalone_wrapper)
             ${CLAP_WRAPPER_CMAKE_CURRENT_SOURCE_DIR}/src/detail/standalone/standalone_host.cpp
             ${CLAP_WRAPPER_CMAKE_CURRENT_SOURCE_DIR}/src/detail/standalone/standalone_host_audio.cpp
             ${CLAP_WRAPPER_CMAKE_CURRENT_SOURCE_DIR}/src/detail/standalone/standalone_host_midi.cpp
+            ${CLAP_WRAPPER_CMAKE_CURRENT_SOURCE_DIR}/src/detail/standalone/standalone_device_control.cpp
             )
     target_link_libraries(${salib}
             PUBLIC
