@@ -95,7 +95,6 @@ void StandaloneHost::setupMIDIBusses(const clap_plugin_t *plugin,
   if (numMIDIOutPorts > 0)
   {
     createsMidiOutput = true;
-    LOGINFO("[WARNING] Midi Output not supported yet");
   }
 }
 
