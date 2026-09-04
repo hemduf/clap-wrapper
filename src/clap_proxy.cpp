@@ -552,8 +552,10 @@ void Plugin::param_request_flush()
 
 // Query an extension.
 // [thread-safe]
-const void *Plugin::clapExtension(const clap_host * /*host*/, const char *extension)
+const void *Plugin::clapExtension(const clap_host *host, const char *extension)
 {
+  if (!host || !extension) return nullptr;
+
   // TODO: add 'audio-ports' host-side extension
   if (!strcmp(extension, CLAP_EXT_LOG)) return &HostExt::log;
   if (!strcmp(extension, CLAP_EXT_PARAMS)) return &HostExt::params;
@@ -570,7 +572,9 @@ const void *Plugin::clapExtension(const clap_host * /*host*/, const char *extens
   if (!strcmp(extension, CLAP_EXT_POSIX_FD_SUPPORT)) return &HostExt::hostposixfd;
 #endif
 
-  return nullptr;
+  auto *plugin = static_cast<Plugin *>(host->host_data);
+  if (!plugin || !plugin->_parentHost) return nullptr;
+  return plugin->_parentHost->getHostExtension(extension);
 }
 
 // Request the host to schedule a call to plugin->on_main_thread(plugin) on the main thread.
