@@ -242,6 +242,13 @@ struct StandaloneHost : Clap::IHost
   uint32_t numMidiOutputPorts{0};
   std::vector<uint32_t> currentMidiInputPorts;
   std::vector<uint32_t> currentMidiOutputPorts;
+
+  // Compatibility aliases for the existing Win32 standalone settings dialog.
+  // They point to the new input-side state, so both the native dialog and the
+  // unified CLAP extension always observe the same selection.
+  uint32_t &numMidiPorts{numMidiInputPorts};
+  std::vector<uint32_t> &currentMidiPorts{currentMidiInputPorts};
+
   bool midiInputSelectionInitialized{false};
   bool midiOutputSelectionInitialized{false};
   std::atomic<bool> midiOutputWorkerRunning{false};
