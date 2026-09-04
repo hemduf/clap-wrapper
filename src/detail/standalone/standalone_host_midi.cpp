@@ -22,6 +22,27 @@ namespace
 {
 std::mutex midiInputPushMutex;
 
+std::vector<uint32_t> remapSelectedPorts(const std::vector<uint32_t> &selected,
+                                         const std::vector<std::string> &previousNames,
+                                         const std::vector<std::string> &currentNames)
+{
+  std::vector<uint32_t> remapped;
+  remapped.reserve(selected.size());
+  for (const auto previousIndex : selected)
+  {
+    if (previousIndex >= previousNames.size()) continue;
+    const auto &name = previousNames[previousIndex];
+    for (uint32_t currentIndex = 0; currentIndex < currentNames.size(); ++currentIndex)
+    {
+      if (currentNames[currentIndex] != name) continue;
+      if (std::find(remapped.begin(), remapped.end(), currentIndex) == remapped.end())
+        remapped.push_back(currentIndex);
+      break;
+    }
+  }
+  return remapped;
+}
+
 size_t midiMessageLength(unsigned char status)
 {
   if (status < 0x80) return 3;
@@ -106,11 +127,24 @@ void StandaloneHost::startMIDIThread()
     for (uint32_t i = 0; i < numMidiInputPorts; ++i) currentMidiInputPorts.push_back(i);
     midiInputSelectionInitialized = true;
   }
+  else if (!knownMidiInputPortNames.empty())
+  {
+    currentMidiInputPorts =
+        remapSelectedPorts(currentMidiInputPorts, knownMidiInputPortNames, inputNames);
+  }
   if (!midiOutputSelectionInitialized)
   {
     currentMidiOutputPorts.clear();
     midiOutputSelectionInitialized = true;
   }
+  else if (!knownMidiOutputPortNames.empty())
+  {
+    currentMidiOutputPorts =
+        remapSelectedPorts(currentMidiOutputPorts, knownMidiOutputPortNames, outputNames);
+  }
+
+  knownMidiInputPortNames = inputNames;
+  knownMidiOutputPortNames = outputNames;
 
   LOGDETAIL("MIDI: {} input sources available, {} selected.", numMidiInputPorts,
             currentMidiInputPorts.size());
@@ -197,7 +231,7 @@ void StandaloneHost::processMIDIEvents(double deltatime, std::vector<unsigned ch
     // Multiple RtMidi input callbacks can run on different backend threads.
     // Serialize producers while keeping the audio-thread consumer lock-free.
     std::lock_guard<std::mutex> guard(midiInputPushMutex);
-    midiToAudioQueue.push(ck);
+    (void)midiToAudioQueue.try_push(ck);
   }
 }
 
@@ -225,8 +259,7 @@ bool StandaloneHost::oe_try_push(const struct clap_output_events *oe, const clap
   ck.dat[0] = midi->data[0];
   ck.dat[1] = midi->data[1];
   ck.dat[2] = midi->data[2];
-  sh->midiFromAudioQueue.push(ck);
-  return true;
+  return sh->midiFromAudioQueue.try_push(ck);
 }
 
 void StandaloneHost::midiOutputWorkerLoop()
