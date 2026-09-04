@@ -242,6 +242,8 @@ struct StandaloneHost : Clap::IHost
   uint32_t numMidiOutputPorts{0};
   std::vector<uint32_t> currentMidiInputPorts;
   std::vector<uint32_t> currentMidiOutputPorts;
+  std::vector<std::string> knownMidiInputPortNames;
+  std::vector<std::string> knownMidiOutputPortNames;
 
   // Compatibility aliases for the existing Win32 standalone settings dialog.
   // They point to the new input-side state, so both the native dialog and the
