@@ -26,40 +26,52 @@ bool contains(const std::vector<uint32_t> &values, uint32_t value)
   return std::find(values.begin(), values.end(), value) != values.end();
 }
 
+std::vector<uint32_t> sampleRatesForDevice(const std::vector<RtAudio::DeviceInfo> &devices,
+                                           uint32_t id)
+{
+  const auto it = std::find_if(devices.begin(), devices.end(),
+                               [id](const auto &device) { return device.ID == id; });
+  if (it == devices.end()) return {};
+  return std::vector<uint32_t>(it->sampleRates.begin(), it->sampleRates.end());
+}
+
 std::vector<uint32_t> availableSampleRates(StandaloneHost &host)
 {
-  host.guaranteeRtAudioDAC();
-
-  std::vector<uint32_t> inputRates;
-  std::vector<uint32_t> outputRates;
-
-  if (host.audioInputUsed)
+  try
   {
-    const auto info = host.rtaDac->getDeviceInfo(host.audioInputDeviceID);
-    inputRates.assign(info.sampleRates.begin(), info.sampleRates.end());
-  }
-  if (host.audioOutputUsed)
-  {
-    const auto info = host.rtaDac->getDeviceInfo(host.audioOutputDeviceID);
-    outputRates.assign(info.sampleRates.begin(), info.sampleRates.end());
-  }
+    host.guaranteeRtAudioDAC();
 
-  if (!inputRates.empty() && !outputRates.empty())
-  {
-    std::vector<uint32_t> intersection;
-    for (const auto rate : outputRates)
-      if (contains(inputRates, rate)) intersection.push_back(rate);
-    return intersection;
-  }
-  if (!outputRates.empty()) return outputRates;
-  if (!inputRates.empty()) return inputRates;
+    const auto inputs = host.getInputAudioDevices();
+    const auto outputs = host.getOutputAudioDevices();
+    const auto inputRates = host.audioInputUsed
+                                ? sampleRatesForDevice(inputs, host.audioInputDeviceID)
+                                : std::vector<uint32_t>{};
+    const auto outputRates = host.audioOutputUsed
+                                 ? sampleRatesForDevice(outputs, host.audioOutputDeviceID)
+                                 : std::vector<uint32_t>{};
 
-  const auto outputs = host.getOutputAudioDevices();
-  if (!outputs.empty())
-    return std::vector<uint32_t>(outputs.front().sampleRates.begin(), outputs.front().sampleRates.end());
-  const auto inputs = host.getInputAudioDevices();
-  if (!inputs.empty())
-    return std::vector<uint32_t>(inputs.front().sampleRates.begin(), inputs.front().sampleRates.end());
+    if (!inputRates.empty() && !outputRates.empty())
+    {
+      std::vector<uint32_t> intersection;
+      for (const auto rate : outputRates)
+        if (contains(inputRates, rate)) intersection.push_back(rate);
+      return intersection;
+    }
+    if (!outputRates.empty()) return outputRates;
+    if (!inputRates.empty()) return inputRates;
+
+    // If a selected device disappeared, do not dereference its stale RtAudio
+    // ID. Offer the first currently available device's rates so the UI can
+    // recover by selecting a valid endpoint.
+    if (!outputs.empty())
+      return std::vector<uint32_t>(outputs.front().sampleRates.begin(), outputs.front().sampleRates.end());
+    if (!inputs.empty())
+      return std::vector<uint32_t>(inputs.front().sampleRates.begin(), inputs.front().sampleRates.end());
+  }
+  catch (...)
+  {
+    LOGINFO("[WARNING] Unable to enumerate sample rates after an audio device change");
+  }
   return {};
 }
 
