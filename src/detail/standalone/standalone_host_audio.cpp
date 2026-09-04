@@ -175,9 +175,17 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
   if (rtaDac->isStreamRunning())
   {
     stopAudioThread();
-    running = true;
-    finishedRunning = false;
   }
+  else if (rtaDac->isStreamOpen())
+  {
+    // A previous open/start attempt may have failed after creating the stream.
+    // Close it before retrying a different device or configuration.
+    rtaDac->closeStream();
+  }
+  running = true;
+  finishedRunning = false;
+  currentInputChannels = 0;
+  currentOutputChannels = 0;
 
   audioInputDeviceID = inputDeviceID;
   audioInputUsed = useInput;
@@ -202,7 +210,7 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
     }
     else
     {
-      // Mkae sure this sample rate is available
+      // Make sure this sample rate is available.
       bool isPossible{false};
       for (auto sr : outInfo.sampleRates)
       {
@@ -236,13 +244,6 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
   RtAudio::StreamOptions options;
   options.flags = RTAUDIO_SCHEDULE_REALTIME;
 
-  /*
-   * RTAudio doesn't tell you what the possible frame sizes are but instead
-   * just tells you to try open stream with power of twos you want. So leave
-   * this for now at 256 and return to it shortly.
-   */
-  LOGINFO("[WARNING] Hardcoding frame size to 256 samples for now");
-
   if (currentBufferSize == 0)
   {
     currentBufferSize = 256;
@@ -253,7 +254,7 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
                          &options))
   {
     LOGINFO("[ERROR] Error opening rta stream '{}'", rtaDac->getErrorText());
-    rtaDac->closeStream();
+    if (rtaDac->isStreamOpen()) rtaDac->closeStream();
     return;
   }
 
@@ -282,12 +283,17 @@ void StandaloneHost::startAudioThreadOn(unsigned int inputDeviceID, uint32_t inp
   if (!rtaDac->isStreamOpen())
   {
     LOGINFO("[ERROR] Stream failed to open :  {}", rtaDac->getErrorText());
+    currentInputChannels = 0;
+    currentOutputChannels = 0;
     return;
   }
 
   if (rtaDac->startStream())
   {
     LOGINFO("[ERROR] startStream failed : {}", rtaDac->getErrorText());
+    if (rtaDac->isStreamOpen()) rtaDac->closeStream();
+    currentInputChannels = 0;
+    currentOutputChannels = 0;
     return;
   }
 }
@@ -297,10 +303,7 @@ void StandaloneHost::stopAudioThread()
   LOGINFO("Shutting down audio");
   if (!rtaDac) return;
 
-  if (!rtaDac->isStreamRunning())
-  {
-  }
-  else
+  if (rtaDac->isStreamRunning())
   {
     running = false;
 
@@ -314,9 +317,12 @@ void StandaloneHost::stopAudioThread()
     if (rtaDac && rtaDac->isStreamRunning())
     {
       rtaDac->stopStream();
-      rtaDac->closeStream();
     }
   }
-  return;
+
+  if (rtaDac && rtaDac->isStreamOpen())
+  {
+    rtaDac->closeStream();
+  }
 }
 }  // namespace freeaudio::clap_wrapper::standalone
