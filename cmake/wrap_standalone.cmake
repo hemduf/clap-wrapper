@@ -53,7 +53,7 @@ function(target_add_standalone_wrapper)
 
     if (NOT DEFINED SA_BUNDLE_VERSION)
         message(STATUS "No SA_BUNDLE_VERSION - using ${PROJECT_VERSION}")
-        set(SA_BUNDLE_VERSION ${PROJECT_VERSION})
+        set(SA_BUNDLE_VERSION "${PROJECT_VERSION}")
     endif()
 
     guarantee_rtaudio()
