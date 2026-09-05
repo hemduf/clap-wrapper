@@ -23,6 +23,12 @@ typedef enum clap_wrapper_standalone_device_kind
   CLAP_WRAPPER_STANDALONE_MIDI_OUTPUT = 3
 } clap_wrapper_standalone_device_kind;
 
+/*
+ * Every successful host info callback MUST return NUL-terminated text in the
+ * fixed-width name/display_name fields below. Callers may consume those fields
+ * using normal C-string semantics. Hosts should truncate to capacity - 1 when
+ * the native device/API name does not fit.
+ */
 typedef struct clap_wrapper_standalone_audio_api_info
 {
   int32_t id;
